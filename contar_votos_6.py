@@ -1,73 +1,14 @@
 import pygame
-import random
-import mysql.connector
-import os
-import threading
+import requests
 import time
-import tkinter as tk
-from tkinter import messagebox
+import threading
 
 # Configuración del juego
 WIDTH, HEIGHT = 600, 400
 CELL_SIZE = 20
 FPS = 10
-VOTE_INTERVAL = 3  # Reducir el tiempo de votación a 3 segundos
-
-# Configuración de la base de datos MySQL en railway
-
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME"),
-    "port": int(os.getenv("DB_PORT", 3306))  # Usa 3306 por defecto si falta
-}
-
-
-
-
-
-def init_db():
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS votos (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            direccion VARCHAR(10),
-            procesado TINYINT DEFAULT 0
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-def insertar_voto(direccion):
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO votos (direccion) VALUES (%s)", (direccion,))
-    conn.commit()
-    conn.close()
-
-def contar_votos():
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor()
-    cursor.execute("SELECT direccion, COUNT(*) FROM votos WHERE procesado = 0 GROUP BY direccion")
-    votos = cursor.fetchall()
-    conn.close()
-
-    if not votos:
-        return None
-
-    max_votos = max(votos, key=lambda x: x[1])[1]
-    opciones_ganadoras = [voto[0] for voto in votos if voto[1] == max_votos]
-    return random.choice(opciones_ganadoras)
-
-
-def marcar_votos_como_procesados():
-    conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE votos SET procesado = 1")
-    conn.commit()
-    conn.close()
+VOTE_INTERVAL = 3  # Cada 3 segundos obtiene la dirección más votada
+SERVER_URL = "http://localhost:5000/get_direction"  # URL del servidor Flask
 
 class SnakeGame:
     def __init__(self):
@@ -78,7 +19,6 @@ class SnakeGame:
         self.running = True
         self.snake = [(WIDTH // 2, HEIGHT // 2)]
         self.direction = "UP"
-        self.next_direction = "UP"
         self.food = self.spawn_food()
         self.start_voting_thread()
     
@@ -87,11 +27,6 @@ class SnakeGame:
                 random.randint(0, (HEIGHT // CELL_SIZE) - 1) * CELL_SIZE)
     
     def move_snake(self):
-        new_direction = contar_votos()
-        if new_direction and self.is_valid_direction(new_direction):
-            self.direction = new_direction
-            marcar_votos_como_procesados()
-        
         x, y = self.snake[0]
         if self.direction == "UP":
             y -= CELL_SIZE
@@ -112,8 +47,6 @@ class SnakeGame:
         x, y = self.snake[0]
         if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT or self.snake[0] in self.snake[1:]:
             self.running = False
-            messagebox.showinfo("Game Over", "La serpiente ha chocado. Reiniciando el juego...")
-            self.__init__()
     
     def draw(self):
         self.screen.fill((0, 0, 0))
@@ -122,9 +55,14 @@ class SnakeGame:
         pygame.draw.rect(self.screen, (255, 0, 0), (*self.food, CELL_SIZE, CELL_SIZE))
         pygame.display.flip()
     
-    def is_valid_direction(self, new_direction):
-        opposite_directions = {"UP": "DOWN", "DOWN": "UP", "LEFT": "RIGHT", "RIGHT": "LEFT"}
-        return new_direction != opposite_directions.get(self.direction, "")
+    def fetch_direction(self):
+        try:
+            response = requests.get(SERVER_URL)
+            data = response.json()
+            if data.get("direction"):
+                self.direction = data["direction"]
+        except Exception as e:
+            print("Error al obtener dirección:", e)
     
     def start_voting_thread(self):
         threading.Thread(target=self.voting_system, daemon=True).start()
@@ -132,6 +70,7 @@ class SnakeGame:
     def voting_system(self):
         while self.running:
             time.sleep(VOTE_INTERVAL)
+            self.fetch_direction()
     
     def run(self):
         while self.running:
@@ -141,45 +80,7 @@ class SnakeGame:
             self.clock.tick(FPS)
         pygame.quit()
 
-class VotingWindow:
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("Ventana de Votación")
-        
-        self.btn_up = tk.Button(self.root, text="Arriba", command=lambda: self.vote("UP"))
-        self.btn_up.pack()
-        
-        self.btn_down = tk.Button(self.root, text="Abajo", command=lambda: self.vote("DOWN"))
-        self.btn_down.pack()
-        
-        self.btn_left = tk.Button(self.root, text="Izquierda", command=lambda: self.vote("LEFT"))
-        self.btn_left.pack()
-        
-        self.btn_right = tk.Button(self.root, text="Derecha", command=lambda: self.vote("RIGHT"))
-        self.btn_right.pack()
-        
-        self.status_label = tk.Label(self.root, text="Esperando votación...")
-        self.status_label.pack()
-    
-    def vote(self, direction):
-        insertar_voto(direction)
-        self.status_label.config(text=f"Voto registrado: {direction}")
-    
-    def run(self):
-        self.root.mainloop()
-
-
-class GameWindow:
-    def __init__(self):
-        self.game = SnakeGame()
-    
-    def run(self):
-        self.game.run()
-    
-
 if __name__ == "__main__":
-    init_db()
-    game_thread = threading.Thread(target=lambda: GameWindow().run(), daemon=True)
-    game_thread.start()
-    voting_window = VotingWindow()
-    voting_window.run()
+    game = SnakeGame()
+    game.run()
+
