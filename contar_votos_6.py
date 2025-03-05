@@ -1,6 +1,7 @@
 import pygame
 import random
 import mysql.connector
+import os
 import threading
 import time
 import tkinter as tk
@@ -12,13 +13,18 @@ CELL_SIZE = 20
 FPS = 10
 VOTE_INTERVAL = 3  # Reducir el tiempo de votación a 3 segundos
 
-# Configuración de la base de datos MySQL
+# Configuración de la base de datos MySQL en railway
+
 DB_CONFIG = {
-    "host": "localhost",  # Reemplazar con la IP del servidor MySQL
-    "user": "usuario_snake",
-    "password": "contraseña_segura",
-    "database": "snake_voting"
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME"),
+    "port": int(os.getenv("DB_PORT", 3306))  # Usa 3306 por defecto si falta
 }
+
+
+
 
 
 def init_db():
