@@ -1,3 +1,4 @@
 pygame
 mysql-connector-python
 tk
+requests
