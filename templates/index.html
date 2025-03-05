@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votación Snake</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; }
+        button { font-size: 20px; margin: 10px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Vota por la dirección de la serpiente</h1>
+    <button onclick="votar('UP')">⬆️ Arriba</button><br>
+    <button onclick="votar('LEFT')">⬅️ Izquierda</button>
+    <button onclick="votar('RIGHT')">➡️ Derecha</button><br>
+    <button onclick="votar('DOWN')">⬇️ Abajo</button>
+    <p id="mensaje"></p>
+    
+    <script>
+        function votar(direccion) {
+            fetch('/votar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ direccion })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('mensaje').innerText = data.message || data.error;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>
