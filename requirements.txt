@@ -2,3 +2,6 @@ pygame
 mysql-connector-python
 tk
 requests
+flask
+gunicorn
+
