@@ -1,7 +1,5 @@
-pygame
+Flask
 mysql-connector-python
-tk
-requests
-flask
 gunicorn
+
 
