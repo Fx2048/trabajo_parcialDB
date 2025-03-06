@@ -5,13 +5,15 @@ import os
 app = Flask(__name__)
 
 # Configuración de la base de datos desde variables de entorno
+
 DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "user": os.getenv("DB_USER", "root"),
-    "password": os.getenv("DB_PASSWORD", "password"),
-    "database": os.getenv("DB_NAME", "railway"),
-    "port": int(os.getenv("DB_PORT", 3306))
+    "host": os.getenv("MYSQLHOST", "localhost"),
+    "user": os.getenv("MYSQLUSER", "root"),
+    "password": os.getenv("MYSQLPASSWORD", "password"),
+    "database": os.getenv("MYSQLDATABASE", "railway"),
+    "port": int(os.getenv("MYSQLPORT", 3306))
 }
+
 
 def insertar_voto(direccion):
     conn = mysql.connector.connect(**DB_CONFIG)
